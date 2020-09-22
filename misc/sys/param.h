@@ -102,5 +102,52 @@
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
+/* Macros related to the types of variables */
+#define __is_same_type(a, b)                                                  \
+	__builtin_types_compatible_p(__typeof__(a), __typeof__(b))
+#define __is_array(arr)		(!__is_same_type((arr), &(arr)[0]))
+
+/* Macros for embedding _Static_assert() in expressions */
+#if __STDC_VERSION__ >= 201112L
+# define __must_be(expr, msg)   (                                             \
+        0 * (int)sizeof(                                                      \
+          struct {                                                            \
+            _Static_assert((expr), msg);                                      \
+            char _ISO_C_forbids_a_struct_with_no_members;                     \
+          }                                                                   \
+        )                                                                     \
+)
+#else
+# define __must_be(expr, msg)   (                                             \
+        0 * (int)sizeof(                                                      \
+          struct {                                                            \
+            int  : (-!(expr));                                                \
+            char _ISO_C_forbids_a_struct_with_no_members;                     \
+          }                                                                   \
+        )                                                                     \
+)
+#endif
+#define __must_be_array(arr)	__must_be(__is_array(arr), "Must be an array!")
+
+/* Macros for array sizes */
+#if defined(__cplusplus)
+# if __cplusplus >= 201103L
+template<typename T, std::size_t len>
+  constexpr inline std::size_t
+  nitems(const T(&)[len]) __THROW
+  {
+    return len;
+  }
+# else /* __cplusplus < 201103L */
+template<typename T, std::size_t len>
+  char
+  (&__nitems_chararr(const T(&)[len]))[len];
+#  define nitems(arr)		(sizeof(__nitems_chararr(arr)))
+# endif /* __cplusplus < 201103L */
+#else /* !defined(__cplusplus) */
+# define __nitems(arr)		(sizeof((arr)) / sizeof((arr)[0]))
+# define nitems(arr)		(__nitems(arr) + __must_be_array(arr))
+#endif /* !defined(__cplusplus) */
+
 
 #endif  /* sys/param.h */
